@@ -26,7 +26,3 @@ jobs:
         run: |
           npx eslint . --ext .js,.jsx,.ts,.tsx --max-warnings=0
           npx eslint . -f json -o eslint-report.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
