@@ -1,0 +1,32 @@
+name: ESLint Review Bot
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  eslint-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install node-fetch (required by eslint-review-bot.js)
+        run: npm install node-fetch@2
+
+      - name: Run ESLint and Review Bot
+        run: |
+          npx eslint . --ext .js,.jsx,.ts,.tsx
+          npx eslint . -f json -o eslint-report.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
