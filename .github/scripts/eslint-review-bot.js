@@ -38,15 +38,52 @@ let commentBody = '### 🔍 ESLint Issues Found:\n\n';
 
 const apiBase = `https://api.github.com/repos/${owner}/${repoName}`;
 const prUrl = `${apiBase}/pulls/${prNumber}`;
+const filesUrl = `${prUrl}/files`;
 
-async function postInlineComment(file, msg) {
+async function getPRDiff() {
   try {
-    const res = await fetch(prUrl);
-    const pr = await res.json();
+    const res = await fetch(filesUrl, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    const files = await res.json();
+    return files;
+  } catch (err) {
+    console.error('❌ Error fetching PR diff:', err);
+    process.exit(1);
+  }
+}
 
-    const commitSha = pr.head.sha;
+async function postInlineComment(file, msg, diffData) {
+  try {
+    const commitSha = diffData.sha;
     const filePath = file.filePath;
+
+    // Find the position of the issue in the diff
+    const diffFile = diffData.changes.find(change => change.filename === filePath);
+    if (!diffFile) return;
+
+    // Calculate position based on diff changes
     const lineNumber = msg.line;
+    let position = null;
+
+    for (const hunk of diffFile.hunks) {
+      for (const change of hunk.changes) {
+        // Ensure we match a line in the diff
+        if (change.line === lineNumber) {
+          position = change.position;
+          break;
+        }
+      }
+    }
+
+    if (position === null) {
+      console.error(`❌ Couldn't find position for line ${lineNumber} in the diff.`);
+      return;
+    }
 
     const commentBody = `⚠️ [${msg.ruleId}] ${msg.message}`;
 
@@ -60,8 +97,7 @@ async function postInlineComment(file, msg) {
         body: commentBody,
         commit_id: commitSha,
         path: filePath,
-        line: lineNumber,
-        side: 'RIGHT',
+        position: position,
       }),
     });
 
@@ -82,6 +118,17 @@ async function postInlineComments() {
       for (const msg of file.messages) {
         if (msg.severity === 2 || msg.severity === 1) {
           await postInlineComment(file, msg);
+        }
+      }
+    }
+  }
+}async function postInlineComments() {
+  const diffData = await getPRDiff();
+  for (const file of eslintReport) {
+    if (file.messages.length > 0) {
+      for (const msg of file.messages) {
+        if (msg.severity === 2 || msg.severity === 1) {
+          await postInlineComment(file, msg, diffData);
         }
       }
     }
