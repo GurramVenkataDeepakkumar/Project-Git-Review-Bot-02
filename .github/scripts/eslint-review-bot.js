@@ -68,8 +68,11 @@ async function postInlineComment(file, msg, diffData) {
     }
 
     // Find the position of the issue in the diff
-    const diffFile = diffData.changes.find(change => change.filename === filePath);
-    if (!diffFile) return;
+    const diffFile = diffData.find(file => file.filename === filePath);
+    if (!diffFile) {
+      console.log(`✅ File not found in PR diff: ${filePath}`);
+      return;
+    }
 
     // Calculate position based on diff changes
     const lineNumber = msg.line;
