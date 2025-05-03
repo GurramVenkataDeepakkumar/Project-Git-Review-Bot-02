@@ -48,6 +48,11 @@ async function getPRDiff() {
         'Accept': 'application/vnd.github.v3+json',
       },
     });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Failed to fetch PR files: ${errText}`);
+    }
     
     const files = await res.json();
     return files;
@@ -57,77 +62,113 @@ async function getPRDiff() {
   }
 }
 
-async function postInlineComment(file, msg, diffData) {
+async function getPRCommitSha() {
   try {
-    const commitSha = diffData.sha;
-    const filePath = file.filePath;
-
-    if(!diffData){
-      console.log(`✅ File not found in PR diff: ${filePath}`);
-      return;
-    }
-
-    // Find the position of the issue in the diff
-    const diffFile = diffData.find(file => file.filename === filePath);
-    if (!diffFile) {
-      console.log(`✅ File not found in PR diff: ${filePath}`);
-      return;
-    }
-
-    // Calculate position based on diff changes
-    const lineNumber = msg.line;
-    let position = null;
-
-    for (const hunk of diffFile.hunks) {
-      for (const change of hunk.changes) {
-        // Ensure we match a line in the diff
-        if (change.line === lineNumber) {
-          position = change.position;
-          break;
-        }
-      }
-    }
-
-    if (position === null) {
-      console.error(`❌ Couldn't find position for line ${lineNumber} in the diff.`);
-      return;
-    }
-
-    const commentBody = `⚠️ [${msg.ruleId}] ${msg.message}`;
-
-    const createRes = await fetch(`${apiBase}/pulls/${prNumber}/comments`, {
-      method: 'POST',
+    const res = await fetch(prUrl, {
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github.v3+json',
       },
-      body: JSON.stringify({
-        body: commentBody,
-        commit_id: commitSha,
-        path: filePath,
-        position: position,
-      }),
     });
 
-    if (createRes.ok) {
-      console.log(`✅ Comment posted on ${filePath} line ${lineNumber}`);
-    } else {
-      const errorText = await createRes.text();
-      console.error(`❌ Failed to post comment: ${errorText}`);
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Failed to fetch PR info: ${errText}`);
     }
+
+    const pr = await res.json();
+    return pr.head.sha;
   } catch (err) {
-    console.error('❌ Error posting inline comment:', err);
+    console.error('❌ Error fetching PR commit SHA:', err);
+    process.exit(1);
+  }
+}
+
+async function postInlineComment(file, msg, diffFiles, commitSha) {
+  const fullPath = file.filePath;
+  const repoRoot = process.cwd();
+
+  // Normalize file path (strip absolute path prefix)
+  const filePath = path.relative(repoRoot, fullPath);
+
+  const matchingFile = diffFiles.find(f => f.filename === filePath);
+  if (!matchingFile) {
+    console.warn(`⚠️ Skipping comment: file not found in PR diff: ${filePath}`);
+    return;
+  }
+
+  if (!matchingFile.patch) {
+    console.warn(`⚠️ Skipping comment: no patch info for file: ${filePath}`);
+    return;
+  }
+
+  // Try to match ESLint-reported line to a diff "position"
+  const patchLines = matchingFile.patch.split('\n');
+  let position = null;
+  let lineInDiff = 0;
+  let currentLine = 0;
+
+  for (const line of patchLines) {
+    if (line.startsWith('@@')) {
+      const match = line.match(/\+(\d+)/); // +startLine
+      if (match) currentLine = parseInt(match[1], 10) - 1;
+      continue;
+    }
+
+    if (!line.startsWith('-')) {
+      currentLine++;
+      lineInDiff++;
+    }
+
+    if (currentLine === msg.line) {
+      position = lineInDiff;
+      break;
+    }
+
+    if (!line.startsWith('-')) {
+      lineInDiff++;
+    }
+  }
+
+  if (position === null) {
+    console.warn(`⚠️ No matching position in diff for ${filePath} line ${msg.line}`);
+    return;
+  }
+
+  const commentBody = `⚠️ **[${msg.ruleId}]** ${msg.message}`;
+
+  const res = await fetch(`${apiBase}/pulls/${prNumber}/comments`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github.v3+json',
+    },
+    body: JSON.stringify({
+      body: commentBody,
+      commit_id: commitSha,
+      path: filePath,
+      position: position,
+    }),
+  });
+
+  if (res.ok) {
+    console.log(`✅ Comment posted on ${filePath} line ${msg.line}`);
+  } else {
+    const err = await res.text();
+    console.error(`❌ Failed to post comment on ${filePath}:`, err);
   }
 }
 
 async function postInlineComments() {
-  const diffData = await getPRDiff();
+  const [diffFiles, commitSha] = await Promise.all([
+    getPRDiff(),
+    getPRCommitSha(),
+  ]);
+
   for (const file of eslintReport) {
-    if (file.messages.length > 0) {
-      for (const msg of file.messages) {
-        if (msg.severity === 2 || msg.severity === 1) {
-          await postInlineComment(file, msg, diffData);
-        }
+    for (const msg of file.messages) {
+      if (msg.severity > 0) {
+        await postInlineComment(file, msg, diffFiles, commitSha);
       }
     }
   }
