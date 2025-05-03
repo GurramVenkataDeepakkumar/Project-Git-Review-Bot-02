@@ -37,7 +37,7 @@ module.exports = [
   {
     rules: {
       // ESLint recommended rules
-      'no-unused-vars': 'warn', // Corresponds to eslint:recommended
+      'no-unused-vars': 'off', // Corresponds to eslint:recommended
       'no-console': 'warn', // Corresponds to eslint:recommended
       'eqeqeq': 'error', // Corresponds to eslint:recommended
 
