@@ -62,6 +62,11 @@ async function postInlineComment(file, msg, diffData) {
     const commitSha = diffData.sha;
     const filePath = file.filePath;
 
+    if(!diffData){
+      console.log(`✅ File not found in PR diff: ${filePath}`);
+      return;
+    }
+
     // Find the position of the issue in the diff
     const diffFile = diffData.changes.find(change => change.filename === filePath);
     if (!diffFile) return;
@@ -113,16 +118,6 @@ async function postInlineComment(file, msg, diffData) {
 }
 
 async function postInlineComments() {
-  for (const file of eslintReport) {
-    if (file.messages.length > 0) {
-      for (const msg of file.messages) {
-        if (msg.severity === 2 || msg.severity === 1) {
-          await postInlineComment(file, msg);
-        }
-      }
-    }
-  }
-}async function postInlineComments() {
   const diffData = await getPRDiff();
   for (const file of eslintReport) {
     if (file.messages.length > 0) {
