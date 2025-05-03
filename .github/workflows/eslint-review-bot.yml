@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+  permissions:
+    pull-requests: write
+    contents: read
+
 jobs:
   eslint-review:
     runs-on: ubuntu-latest
@@ -28,8 +32,8 @@ jobs:
           npx eslint . -f json -o eslint-report.json
 
       - name: Post or update ESLint comment on PR
-        run: node .github/scripts/eslint-review-bot.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node .github/scripts/eslint-review-bot.js

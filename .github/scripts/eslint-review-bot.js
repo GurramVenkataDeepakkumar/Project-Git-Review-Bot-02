@@ -5,6 +5,8 @@ const token = process.env.GITHUB_TOKEN;
 const repo = process.env.GITHUB_REPOSITORY;
 const prNumber = process.env.PR_NUMBER;
 
+console.log(`Posting comment to PR #${prNumber}`);
+
 if (!token || !repo || !prNumber) {
   console.error('❌ Missing environment variables.');
   process.exit(1);
@@ -66,7 +68,10 @@ async function postOrUpdateComment() {
       if (updateRes.ok) {
         console.log('✅ ESLint comment updated.');
       } else {
-        console.error('❌ Failed to update comment.');
+        const errorText = await updateRes.text();
+        console.error('❌ Failed to post comment.');
+        console.error(`Status: ${createRes.status}`);
+        console.error(`Response: ${errorText}`);
       }
     } else {
       // 4. Post new comment
@@ -82,7 +87,10 @@ async function postOrUpdateComment() {
       if (createRes.ok) {
         console.log('✅ ESLint comment posted.');
       } else {
+        const errorText = await createRes.text();
         console.error('❌ Failed to post comment.');
+        console.error(`Status: ${createRes.status}`);
+        console.error(`Response: ${errorText}`);
       }
     }
   } catch (err) {
