@@ -107,6 +107,7 @@ async function postInlineComment(file, msg, diffFiles, commitSha) {
   const patchLines = matchingFile.patch.split('\n');
   let position = 0;
   let fileLine = 0;
+  let found = false;
 
   // Parse the patch lines
   for (const line of patchLines) {
@@ -132,12 +133,13 @@ async function postInlineComment(file, msg, diffFiles, commitSha) {
       position++; // Only lines shown in the GitHub UI count toward position
     }
 
-    if (fileLine === msg.line) {
+    if (isAddition &&fileLine === msg.line) {
+      found = true;
       break;
     }
   }
 
-  if (position === null) {
+  if (!found) {
     console.warn(`⚠️ No matching position in diff for ${filePath} line ${msg.line}`);
     return;
   }
