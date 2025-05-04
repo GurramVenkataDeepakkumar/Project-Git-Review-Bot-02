@@ -28,7 +28,7 @@ jobs:
       - name: Install node-fetch (required by eslint-review-bot.js)
         run: npm install node-fetch@2
 
-      - name: Get changed files
+      - name: Get changed files #get the changed files in pr
         id: changed-files
         run: |
           echo "::group::Detecting changed files"
@@ -37,7 +37,7 @@ jobs:
           cat changed-files.txt
           echo "::endgroup::"
 
-      - name: Run ESLint on changed files
+      - name: Run ESLint on changed files #run eslint on changed files
         if: success()
         run: |
           CHANGED_FILES=$(cat changed-files.txt | xargs)
@@ -47,7 +47,10 @@ jobs:
           fi
           npx eslint $CHANGED_FILES -f json -o eslint-report.json
 
-      - name: Post or update ESLint comment on PR
+      - name: Print ESLint JSON Report (for debugging)  #print the eslint-report.json
+        run: cat eslint-report.json
+
+      - name: Post or update ESLint comment on PR #post inline comments on PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
