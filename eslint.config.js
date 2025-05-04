@@ -7,6 +7,7 @@ const parser = require('@typescript-eslint/parser');
 module.exports = [
   // Language options and parser settings
   {
+    files: ['**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx'],
     languageOptions: {
       parser: parser, // Use the TypeScript parser
       parserOptions: {
