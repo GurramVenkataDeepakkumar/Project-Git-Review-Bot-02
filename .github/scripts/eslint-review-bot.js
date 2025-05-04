@@ -106,39 +106,34 @@ async function postInlineComment(file, msg, diffFiles, commitSha) {
   // Try to match ESLint-reported line to a diff "position"
   const patchLines = matchingFile.patch.split('\n');
   let position = null;
-  let lineInDiff = 0;
-  let currentLine = 0;
-  let lineInHunk = 0;
+  let diffLineCounter = 0;
+  let currentFileLine = 0;
 
   // Parse the patch lines
   for (const line of patchLines) {
-    // Check for the diff hunk header (line starting with @@)
     if (line.startsWith('@@')) {
-      const match = line.match(/\+(\d+)/); // +startLine
+      // Example hunk: @@ -1,5 +1,10 @@
+      const match = line.match(/\+(\d+)/);
       if (match) {
-        currentLine = parseInt(match[1], 10) - 1; // Adjust starting line
+        currentFileLine = parseInt(match[1], 10) - 1;
       }
       continue;
     }
 
-    // Skip removed lines (starting with '-')
-    if (line.startsWith('-')) {
+    // Count position only for context lines and additions
+    const isContextOrAddition = line.startsWith(' ') || line.startsWith('+');
+    if (isContextOrAddition) {
+      currentFileLine++;
+      diffLineCounter++;
+    } else if (line.startsWith('-')) {
+      // Removed lines are in patch but not in final file; don't increment file line
       continue;
     }
 
-    // Only process added lines (starting with '+')
-    if (line.startsWith('+')) {
-      currentLine++;
-      lineInHunk++;
-
-      // Check if the current line matches the line from ESLint
-      if (currentLine === msg.line) {
-        position = lineInDiff;
-        break;
-      }
+    if (currentFileLine === msg.line) {
+      position = diffLineCounter;
+      break;
     }
-
-    lineInDiff++; // Increment for each line
   }
 
   if (position === null) {
