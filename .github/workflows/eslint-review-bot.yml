@@ -26,10 +26,24 @@ jobs:
       - name: Install node-fetch (required by eslint-review-bot.js)
         run: npm install node-fetch@2
 
-      - name: Run ESLint and Review Bot
+      - name: Get changed files
+        id: changed-files
         run: |
-          npx eslint . --ext .js,.jsx,.ts,.tsx
-          npx eslint . -f json -o eslint-report.json
+          echo "::group::Detecting changed files"
+          git fetch origin ${{ github.base_ref }}
+          git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.js' '*.jsx' '*.ts' '*.tsx' > changed-files.txt
+          cat changed-files.txt
+          echo "::endgroup::"
+
+      - name: Run ESLint on changed files
+        if: success()
+        run: |
+          CHANGED_FILES=$(cat changed-files.txt | xargs)
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No JS/TS files changed. Skipping ESLint."
+            exit 0
+          fi
+          npx eslint $CHANGED_FILES -f json -o eslint-report.json
 
       - name: Post or update ESLint comment on PR
         env:
