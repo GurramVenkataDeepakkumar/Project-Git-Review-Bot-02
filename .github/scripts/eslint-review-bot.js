@@ -105,33 +105,33 @@ async function postInlineComment(file, msg, diffFiles, commitSha) {
 
   // Try to match ESLint-reported line to a diff "position"
   const patchLines = matchingFile.patch.split('\n');
-  let position = null;
-  let diffLineCounter = 0;
-  let currentFileLine = 0;
+  let position = 0;
+  let fileLine = 0;
 
   // Parse the patch lines
   for (const line of patchLines) {
     if (line.startsWith('@@')) {
-      // Example hunk: @@ -1,5 +1,10 @@
+      // Example: @@ -24,7 +24,7 @@
       const match = line.match(/\+(\d+)/);
       if (match) {
-        currentFileLine = parseInt(match[1], 10) - 1;
+        fileLine = parseInt(match[1], 10) - 1; // ESLint lines are 1-based
       }
       continue;
     }
 
-    // Count position only for context lines and additions
-    const isContextOrAddition = line.startsWith(' ') || line.startsWith('+');
-    if (isContextOrAddition) {
-      currentFileLine++;
-      diffLineCounter++;
-    } else if (line.startsWith('-')) {
-      // Removed lines are in patch but not in final file; don't increment file line
-      continue;
+    const isContext = line.startsWith(' ');
+    const isAddition = line.startsWith('+');
+    const isRemoval = line.startsWith('-');
+
+    if (isContext || isAddition) {
+      fileLine++;
     }
 
-    if (currentFileLine === msg.line) {
-      position = diffLineCounter;
+    if (!isRemoval) {
+      position++; // Only lines shown in the GitHub UI count toward position
+    }
+
+    if (fileLine === msg.line) {
       break;
     }
   }
