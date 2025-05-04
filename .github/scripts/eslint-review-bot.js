@@ -116,6 +116,7 @@ async function postInlineComment(file, msg, diffFiles, commitSha) {
       if (match) {
         fileLine = parseInt(match[1], 10) - 1; // ESLint lines are 1-based
       }
+      position++; // @@ counts toward position
       continue;
     }
 
