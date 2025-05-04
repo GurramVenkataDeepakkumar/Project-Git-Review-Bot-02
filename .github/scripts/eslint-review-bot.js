@@ -108,27 +108,37 @@ async function postInlineComment(file, msg, diffFiles, commitSha) {
   let position = null;
   let lineInDiff = 0;
   let currentLine = 0;
+  let lineInHunk = 0;
 
+  // Parse the patch lines
   for (const line of patchLines) {
+    // Check for the diff hunk header (line starting with @@)
     if (line.startsWith('@@')) {
       const match = line.match(/\+(\d+)/); // +startLine
-      if (match) currentLine = parseInt(match[1], 10) - 1;
+      if (match) {
+        currentLine = parseInt(match[1], 10) - 1; // Adjust starting line
+      }
       continue;
     }
 
-    if (!line.startsWith('-')) {
+    // Skip removed lines (starting with '-')
+    if (line.startsWith('-')) {
+      continue;
+    }
+
+    // Only process added lines (starting with '+')
+    if (line.startsWith('+')) {
       currentLine++;
-      lineInDiff++;
+      lineInHunk++;
+
+      // Check if the current line matches the line from ESLint
+      if (currentLine === msg.line) {
+        position = lineInDiff;
+        break;
+      }
     }
 
-    if (currentLine === msg.line) {
-      position = lineInDiff;
-      break;
-    }
-
-    if (!line.startsWith('-')) {
-      lineInDiff++;
-    }
+    lineInDiff++; // Increment for each line
   }
 
   if (position === null) {
