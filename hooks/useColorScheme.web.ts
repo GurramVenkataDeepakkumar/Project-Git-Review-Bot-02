@@ -6,6 +6,7 @@ import { useColorScheme as useRNColorScheme } from 'react-native';
  */
 export function useColorScheme() {
   const [hasHydrated, setHasHydrated] = useState(false);
+  const [testData, setTestData] = useState();
 
   useEffect(() => {
     setHasHydrated(true);

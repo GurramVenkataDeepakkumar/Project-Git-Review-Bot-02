@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -26,6 +26,7 @@ export function HelloWave() {
 
   return (
     <Animated.View style={animatedStyle}>
+      <Text style={{color:'#000'}}>Test</Text>
       <ThemedText style={styles.text}>👋</ThemedText>
     </Animated.View>
   );
